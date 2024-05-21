@@ -1,0 +1,55 @@
+#version 460
+
+// 8x8 workgroup size
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Output image
+layout(set = 0, binding = 0, rgba32f) uniform image2D outImage;
+
+// List of boxes to be drawn
+struct Box {
+    vec2 pos;
+    vec2 size;
+    vec4 color;
+    float radius;
+};
+
+layout(set = 0, binding = 1, std430) buffer BoxBuffer {
+    uint len;
+    Box boxes[];
+} boxBuf;
+
+struct PixelState {
+    vec4 color;
+};
+
+// From https://www.shadertoy.com/view/WtdSDs
+float roundedBoxSDF(vec2 CenterPosition, vec2 Size, float Radius) {
+    return length(max(abs(CenterPosition) - Size + Radius, 0.0)) - Radius;
+}
+
+vec4 blendColors(vec4 dst, vec4 src, float alpha) {
+    float final_alpha = src.a * alpha;
+    return src * final_alpha + dst * (1 - final_alpha);
+}
+
+void main() {
+    // This pixel's coordinates
+    vec2 pixelCoord = vec2(gl_WorkGroupID.xy * gl_WorkGroupSize.x + gl_LocalInvocationID.xy);
+
+    // This pixel's state
+    PixelState state;
+    state.color = vec4(1.0);
+
+    // Process each box to be drawn
+    for(uint i = 0; i < boxBuf.len; i++) {
+        Box box = boxBuf.boxes[i];
+
+        float dist = roundedBoxSDF(pixelCoord - box.pos - (box.size / 2.0), box.size / 2.0, box.radius);
+        float coverage = 1.0 - smoothstep(0.0, 1.0, dist);
+
+        state.color = blendColors(state.color, box.color, coverage);
+    }
+
+    imageStore(outImage, ivec2(pixelCoord), state.color);
+}

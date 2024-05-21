@@ -1,0 +1,14 @@
+[package]
+name = "ndom"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+taffy = "0.4.4"
+slotmap = "1.0.7"
+ecolor = "0.27.2"
+raw-window-handle = "0.6.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = { version = "0.30.0", default-features = false, features = ["rwh_06", "x11"] }
+ash = "0.38.0"
